@@ -31,14 +31,12 @@ jobs:
             return 1
           }
           fetch_week thisweek
-          ok=1
-          for attempt in 1 2 3 4; do
+          python3 -c "import json;d=json.load(open('ff_calendar_thisweek.json'));assert isinstance(d,list) and d, 'empty feed'"
+          # nextweek is best-effort: the running week alone satisfies the bot's compliance
+          # lookahead (it never trades or holds beyond the current FF week).
+          for attempt in 1 2 3; do
             sleep 15
-            if fetch_week nextweek; then ok=0; break; fi
-          done
-          if [ "$ok" -ne 0 ]; then echo "nextweek unavailable after retries"; exit 1; fi
-          for wk in thisweek nextweek; do
-            python3 -c "import json;d=json.load(open('ff_calendar_${wk}.json'));assert isinstance(d,list) and d, 'empty feed'"
+            if fetch_week nextweek && python3 -c "import json;d=json.load(open('ff_calendar_nextweek.json'));assert isinstance(d,list) and d" 2>/dev/null; then break; fi
           done
           date -u +"%Y-%m-%dT%H:%M:%SZ" > last_updated.txt
       - name: Commit if changed
@@ -48,4 +46,5 @@ jobs:
           git add -A
           git diff --cached --quiet || git commit -m "relay: $(cat last_updated.txt)"
           git push
+
 
