@@ -13,8 +13,26 @@ jobs:
       - name: Fetch ForexFactory calendar
         run: |
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+          fetch_week() {
+            wk="$1"
+            for host in nfs.faireconomy.media cdn-nfs.faireconomy.media; do
+              if curl -fsS --retry 2 --retry-delay 3 \
+                   -A "$UA" \
+                   -H "Accept: application/json, text/plain, */*" \
+                   -H "Accept-Language: en-GB,en;q=0.9" \
+                   -H "Referer: https://www.forexfactory.com/" \
+                   -H "Origin: https://www.forexfactory.com" \
+                   "https://${host}/ff_calendar_${wk}.json" -o "ff_calendar_${wk}.json"; then
+                echo "OK ${wk} via ${host}"
+                return 0
+              fi
+              echo "refused ${wk} via ${host}"
+            done
+            return 1
+          }
+          fetch_week thisweek
+          fetch_week nextweek
           for wk in thisweek nextweek; do
-            curl -fsS -A "$UA" "https://nfs.faireconomy.media/ff_calendar_${wk}.json" -o "ff_calendar_${wk}.json"
             python3 -c "import json;d=json.load(open('ff_calendar_${wk}.json'));assert isinstance(d,list) and d, 'empty feed'"
           done
           date -u +"%Y-%m-%dT%H:%M:%SZ" > last_updated.txt
